@@ -1,4 +1,4 @@
-import { DJModeEnum } from '../../@types/index.js';
+import { DJModeEnum, LoadType } from '../../@types/index.js';
 import { embeds } from '../../embeds/index.js';
 import { DJManager } from '../../lib/DjManager.js';
 import { QueueLimitManager } from '../../lib/QueueLimitManager.js';
@@ -232,47 +232,32 @@ export class PlayPlaylistSubcommand extends BasePlaylistSubcommand {
     }
 
     /**
-     * Resolve a stored track using encoded data, URL, then title search
+     * Resolve a stored track using encoded data, URL, then title search.
+     * YouTube mix/playlist URLs (`watch?v=X&list=...`) resolve as a
+     * PLAYLIST result, so the whole playlist is expanded into the queue.
      */
     private async findTrack(
         context: PlaylistSubcommandContext,
         playlistTrack: PlaylistTrack,
-    ) {
-        if (playlistTrack.encoded) {
+    ): Promise<any[] | null> {
+        const queries = [
+            playlistTrack.encoded,
+            playlistTrack.url,
+            `ytsearch:${playlistTrack.title}`,
+        ].filter((query): query is string => Boolean(query));
+
+        for (const query of new Set(queries)) {
             try {
-                const result = await context.client.lavashark.search(playlistTrack.encoded);
-                if (result.tracks.length > 0) return result.tracks[0];
+                const result = await context.client.lavashark.search(query);
+                if (result.tracks.length > 0) {
+                    if (result.loadType === LoadType.PLAYLIST) {
+                        return result.tracks;
+                    }
+                    return [result.tracks[0]];
+                }
             } catch {
-                // Try next query
+                // Try the next fallback query
             }
-        }
-
-        if (playlistTrack.url && (playlistTrack.url.startsWith('http://') || playlistTrack.url.startsWith('https://'))) {
-            try {
-                const result = await context.client.lavashark.search(playlistTrack.url);
-                if (result.tracks.length > 0) return result.tracks[0];
-            } catch {
-                // Try next query
-            }
-        }
-
-        const cleanTitle = playlistTrack.title
-            ?.replace(/\.(mp3|flac|wav|aac|ogg|m4a|webm)$/i, '')
-            .trim();
-
-        if (!cleanTitle || cleanTitle.length < 3) {
-            return null;
-        }
-
-        const searchQuery = playlistTrack.author
-            ? `ytsearch:${playlistTrack.author} - ${cleanTitle}`
-            : `ytsearch:${cleanTitle}`;
-
-        try {
-            const result = await context.client.lavashark.search(searchQuery);
-            if (result.tracks.length > 0) return result.tracks[0];
-        } catch {
-            // Track search failed
         }
 
         return null;
@@ -316,10 +301,10 @@ export class PlayPlaylistSubcommand extends BasePlaylistSubcommand {
             });
 
             const results = await Promise.all(promises);
-            for (const track of results) {
-                if (track) {
-                    resolvedTracks.push(track);
-                    added++;
+            for (const result of results) {
+                if (result && result.length > 0) {
+                    resolvedTracks.push(...result);
+                    added += result.length;
                 } else {
                     skipped++;
                 }

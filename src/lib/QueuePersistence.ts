@@ -41,6 +41,27 @@ interface SerializedTrack {
 }
 
 /**
+ * Format milliseconds as a duration label (mirrors lavashark's formatTime)
+ */
+const formatDurationLabel = (milliseconds: number): string => {
+    const seconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    let timeString = '';
+    if (days > 0) {
+        timeString += `${days}d `;
+    }
+    if (hours % 24 > 0) {
+        timeString += `${(hours % 24).toString().padStart(2, '0')}:`;
+    }
+    timeString += `${(minutes % 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
+
+    return timeString;
+};
+
+/**
  * Manager for persisting queue state to SQLite database
  */
 export class QueuePersistence {
@@ -95,7 +116,7 @@ export class QueuePersistence {
                         identifier: track.identifier || '',
                         title: track.title || '',
                         author: track.author || '',
-                        length: typeof track.duration === 'number' ? track.duration : 0,
+                        length: typeof track.duration === 'number' ? track.duration : (track.duration?.value ?? 0),
                         uri: track.uri || '',
                         sourceName: (track as any).sourceName || 'youtube',
                         isSeekable: track.isSeekable ?? true,
@@ -299,45 +320,63 @@ export class QueuePersistence {
                 const chunk = queueData.tracks.slice(i, i + BATCH_SIZE);
                 const restoredChunk = await Promise.all(chunk.map(async (serializedTrack) => {
                     try {
-                        let result = null;
+                        let resolvedTrack: any = null;
 
-                        // Try loading by encoded track string first
+                        // 1) Decode the saved encoded track exactly (preserves the original track data)
                         if (serializedTrack.track && serializedTrack.track.trim() !== '') {
                             try {
-                                result = await client.lavashark.search(serializedTrack.track);
+                                resolvedTrack = await client.lavashark.decodeTrack(serializedTrack.track);
                             } catch (_) {
                                 // Encoded string failed, will try fallback
                             }
                         }
 
-                        // Fallback: search by URI
-                        if ((!result || !result.tracks || result.tracks.length === 0) && serializedTrack.info?.uri && serializedTrack.info.uri.trim() !== '') {
+                        // 2) Fallback: search by URI
+                        if (!resolvedTrack && serializedTrack.info?.uri && serializedTrack.info.uri.trim() !== '') {
                             try {
-                                result = await client.lavashark.search(serializedTrack.info.uri);
+                                const result = await client.lavashark.search(serializedTrack.info.uri);
+                                if (result.tracks.length > 0) {
+                                    resolvedTrack = result.tracks[0];
+                                }
                             } catch (_) {
                                 // URI search failed, will try title search
                             }
                         }
 
-                        // Final fallback: search by title + author
-                        if ((!result || !result.tracks || result.tracks.length === 0) && serializedTrack.info?.title && serializedTrack.info.title.trim() !== '') {
+                        // 3) Final fallback: search by title + author
+                        if (!resolvedTrack && serializedTrack.info?.title && serializedTrack.info.title.trim() !== '') {
                             try {
                                 const query = serializedTrack.info.author
                                     ? `${serializedTrack.info.title} ${serializedTrack.info.author}`.trim()
                                     : serializedTrack.info.title.trim();
-                                result = await client.lavashark.search(`ytsearch:${query}`);
+                                const result = await client.lavashark.search(`ytsearch:${query}`);
+                                if (result.tracks.length > 0) {
+                                    resolvedTrack = result.tracks[0];
+                                }
                             } catch (_) {
                                 // All methods failed
                             }
                         }
 
-                        if (result && result.tracks && result.tracks.length > 0) {
-                            const track = result.tracks[0];
-                            track.requester = {
+                        if (resolvedTrack) {
+                            // Restore the originally saved metadata so names are never
+                            // replaced by whatever the fallback search returned
+                            const info = serializedTrack.info ?? {};
+                            if (info.title) resolvedTrack.title = info.title;
+                            if (info.author) resolvedTrack.author = info.author;
+                            if (info.uri) resolvedTrack.uri = info.uri;
+                            if (info.identifier) resolvedTrack.identifier = info.identifier;
+                            if (typeof info.length === 'number' && info.length > 0) {
+                                resolvedTrack.duration = {
+                                    label: formatDurationLabel(info.length),
+                                    value: info.length,
+                                };
+                            }
+                            resolvedTrack.requester = {
                                 id: serializedTrack.requesterId,
                                 tag: serializedTrack.requesterTag
                             } as any;
-                            return track;
+                            return resolvedTrack;
                         } else {
                             this.bot.logger.log(this.bot.shardId, `[QueuePersistence] Could not restore track "${serializedTrack.info.title}", skipping`);
                         }
