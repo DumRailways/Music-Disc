@@ -6,10 +6,10 @@ const config = {
     nodeList: [
         {
             id: 'serenetia',
-            'host': 'lavalinkv4.serenetia.com',
-            'port': 443,
-            'password': 'https://seretia.link/discord',
-            'secure': 'true'
+            host: 'lavalinkv4.serenetia.com',
+            port: 443,
+            password: 'https://seretia.link/discord',
+            secure: 'true',
         }
     ],
 
