@@ -5,10 +5,10 @@ const config = {
     // Lavalink node list
     nodeList: [
         {
-            id: 'Node 1',
-            hostname: 'localhost',
-            port: 2333,
-            password: 'youshallnotpass'
+            id: 'serenetia',
+            hostname: 'lavalinkv4.serenetia.com',
+            port: 443,
+            password: 'https://seretia.link/discord'
         }
     ],
 
@@ -120,7 +120,7 @@ const config = {
 
     // Web dashboard settings
     webDashboard: {
-        enabled                 : true,
+        enabled                 : false,
         port                    : 33333,
         loginType               : 'USER',       // 'USER' | 'OAUTH2'
 
@@ -151,7 +151,7 @@ const config = {
 
     // Local Lavalink node
     localNode: {
-        enabled             : true,
+        enabled             : false,
         autoRestart         : true,
         // downloadLink        : 'https://github.com/lavalink-devs/Lavalink/releases/download/4.1.1/Lavalink.jar'
     },
