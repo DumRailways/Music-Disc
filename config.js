@@ -87,7 +87,7 @@ const config = {
         // Language settings
         i18n: {
             localePath          : '../../locales',
-            defaultLocale       : 'en-US'
+            defaultLocale       : 'ru-RU'
         },
 
         // Max queued songs per user settings
@@ -151,7 +151,7 @@ const config = {
 
     // Local Lavalink node
     localNode: {
-        enabled             : false,
+        enabled             : true,
         autoRestart         : true,
         // downloadLink        : 'https://github.com/lavalink-devs/Lavalink/releases/download/4.1.1/Lavalink.jar'
     },
