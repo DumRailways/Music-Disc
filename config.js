@@ -87,15 +87,15 @@ const config = {
         // Language settings
         i18n: {
             localePath          : '../../locales',
-            defaultLocale       : 'en-US'
+            defaultLocale       : 'ru-RU'
         },
 
         // Max queued songs per user settings
         maxQueuedSongs: {
             enabled             : true,         // Enable/disable this feature
             global              : 100,          // Global maximum queue size for the bot (absolute limit)
-            default             : 5,            // Default limit for users without special roles
-            djs                 : 10,           // Limit for DJ role users
+            default             : 50,            // Default limit for users without special roles
+            djs                 : 50,           // Limit for DJ role users
             roles: {                            // Custom limits per role ID
                 // "123456789012345678": 10,
                 // "987654321098765432": 20,
