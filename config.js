@@ -4,11 +4,11 @@
 const config = {
     // Lavalink node list
     nodeList: [
-        {
-            id: 'Node 1',
-            hostname: 'localhost',
-            port: 2333,
-            password: 'youshallnotpass'
+        { 
+            id: 'serenetia',
+            hostname: 'lavalinkv4.serenetia.com',
+            port: 80,
+            password: 'https://seretia.link/discord',
         }
     ],
 
